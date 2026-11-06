@@ -1,25 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
+    <AssemblyName>TerraTopia</AssemblyName>
+    <RootNamespace>TerraTopia</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
-
-  <!-- Package NuGet untuk SQLite -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
-  </ItemGroup>
-
-  <!-- Referensi DLL lokal dari folder libs -->
   <ItemGroup>
     <Reference Include="TShockAPI">
-      <HintPath>libs\TShockAPI.dll</HintPath>
+      <HintPath>libs/TShockAPI.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="TerrariaServer">
-      <HintPath>libs\TerrariaServer.dll</HintPath>
+      <HintPath>libs/TerrariaServer.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="OTAPI">
+      <HintPath>libs/OTAPI.dll</HintPath>
+      <Private>false</Private>
     </Reference>
   </ItemGroup>
-
 </Project>
