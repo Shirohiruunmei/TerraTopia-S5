@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 using TShockAPI;
-using TShockAPI.DB;
 using Terraria;
-using Terraria.ID;
 using TerrariaApi.Server;
 
 namespace TerraTopia
@@ -21,7 +20,7 @@ namespace TerraTopia
 
         private static string _dbPath;
         private static List<ShopItem> _shopItems = new List<ShopItem>();
-        private static readonly Dictionary<string, string> _lastDamageBy = new Dictionary<string, string>();
+        private static readonly Random _rng = new Random();
 
         public Plugin(Main game) : base(game) { }
 
@@ -29,7 +28,6 @@ namespace TerraTopia
         {
             ServerApi.Hooks.GameInitialize.Register(this, OnGameInit);
             ServerApi.Hooks.NpcKilled.Register(this, OnNpcKilled);
-            ServerApi.Hooks.NetGetData.Register(this, OnGetData);
         }
 
         protected override void Dispose(bool disposing)
@@ -38,7 +36,6 @@ namespace TerraTopia
             {
                 ServerApi.Hooks.GameInitialize.Deregister(this, OnGameInit);
                 ServerApi.Hooks.NpcKilled.Deregister(this, OnNpcKilled);
-                ServerApi.Hooks.NetGetData.Deregister(this, OnGetData);
             }
             base.Dispose(disposing);
         }
@@ -46,7 +43,7 @@ namespace TerraTopia
         private void OnGameInit(EventArgs args)
         {
             _dbPath = Path.Combine(TShock.SavePath, "shirocoin.db");
-            CreateDatabase();
+            InitDatabase();
 
             string shopPath = Path.Combine(TShock.SavePath, "shop.json");
             if (File.Exists(shopPath))
@@ -86,84 +83,65 @@ namespace TerraTopia
             new ShopItem { name = "Pharaoh's Mask", itemId = 672, stack = 1, price = 250 }
         };
 
-        private void CreateDatabase()
+        private static SqliteConnection GetConnection()
         {
-            var db = new SqliteDB(_dbPath);
-            db.Query("CREATE TABLE IF NOT EXISTS ShiroCoin (PlayerName TEXT PRIMARY KEY, Balance INT NOT NULL DEFAULT 0)");
+            var conn = new SqliteConnection($"Data Source={_dbPath}");
+            conn.Open();
+            return conn;
+        }
+
+        private void InitDatabase()
+        {
+            using var conn = GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE IF NOT EXISTS ShiroCoin (PlayerName TEXT PRIMARY KEY, Balance INTEGER NOT NULL DEFAULT 0)";
+            cmd.ExecuteNonQuery();
         }
 
         private static int GetBalance(string playerName)
         {
-            using (var db = new SqliteDB(_dbPath))
-            {
-                var result = db.Query("SELECT Balance FROM ShiroCoin WHERE PlayerName = @0", playerName);
-                if (result.Count == 0) return 0;
-                return Convert.ToInt32(result[0][0]);
-            }
+            using var conn = GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Balance FROM ShiroCoin WHERE PlayerName = $name";
+            cmd.Parameters.AddWithValue("$name", playerName);
+            var result = cmd.ExecuteScalar();
+            return result == null ? 0 : Convert.ToInt32(result);
         }
 
         private static void SetBalance(string playerName, int balance)
         {
-            using (var db = new SqliteDB(_dbPath))
-            {
-                db.Query("INSERT OR REPLACE INTO ShiroCoin (PlayerName, Balance) VALUES (@0, @1)", playerName, balance);
-            }
+            using var conn = GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO ShiroCoin (PlayerName, Balance) VALUES ($name, $bal) " +
+                               "ON CONFLICT(PlayerName) DO UPDATE SET Balance = $bal";
+            cmd.Parameters.AddWithValue("$name", playerName);
+            cmd.Parameters.AddWithValue("$bal", balance);
+            cmd.ExecuteNonQuery();
         }
 
         // ---- Drop coin saat mob/bos mati ----
         private void OnNpcKilled(NpcKilledEventArgs args)
         {
             var npc = args.npc;
-            bool isBoss = npc.boss || npc.type == NPCID.KingSlime || npc.type == NPCID.EaterofWorldsHead;
+            if (npc == null) return;
 
+            bool isBoss = npc.boss;
             int min = isBoss ? 50 : 1;
             int max = isBoss ? 150 : 5;
-            int drop = new Random().Next(min, max + 1);
+            int drop = _rng.Next(min, max + 1);
 
-            // Cari pemain yang paling akhir menyerang NPC ini
-            string killerName = null;
-            if (_lastDamageBy.TryGetValue(npc.FullName, out var last))
-                killerName = last;
+            var closest = TShock.Players
+                .Where(p => p != null && p.Active && !p.Dead)
+                .OrderBy(p => Math.Abs(p.TPlayer.Center.X - npc.Center.X) + Math.Abs(p.TPlayer.Center.Y - npc.Center.Y))
+                .FirstOrDefault();
 
-            // Fallback: cari pemain terdekat
-            if (killerName == null)
-            {
-                var closest = Main.player
-                    .Where(p => p.active && p.statLife > 0)
-                    .OrderBy(p => Math.Abs(p.Center.X - npc.Center.X) + Math.Abs(p.Center.Y - npc.Center.Y))
-                    .FirstOrDefault();
-                if (closest != null) killerName = closest.name;
-            }
+            if (closest == null) return;
 
-            if (killerName == null) return;
-
-            // Jangan kasih coin ke bot/NPC player
-            var tsPlayer = TShock.Players.FirstOrDefault(p => p?.Name == killerName);
-            if (tsPlayer == null) return;
-
-            int newBalance = GetBalance(killerName) + drop;
-            SetBalance(killerName, newBalance);
+            int newBalance = GetBalance(closest.Name) + drop;
+            SetBalance(closest.Name, newBalance);
 
             string type = isBoss ? "boss" : "mob";
-            tsPlayer.SendSuccessMessage($"[ShiroCoin] +{drop} SC dari membunuh {type} ({npc.FullName})! Saldo: {newBalance} SC");
-        }
-
-        // ---- Track siapa yang menyerang NPC ----
-        private void OnGetData(GetDataEventArgs args)
-        {
-            if (args.MsgID == PacketTypes.PlayerDamage)
-            {
-                using (var reader = new BinaryReader(new MemoryStream(args.Data)))
-                {
-                    var player = Main.player[args.Msg.whoAmI];
-                    reader.ReadByte(); // flags
-                    int npcIndex = reader.ReadInt16();
-                    if (npcIndex >= 0 && npcIndex < Main.npc.Length && Main.npc[npcIndex] != null)
-                    {
-                        _lastDamageBy[Main.npc[npcIndex].FullName] = player.name;
-                    }
-                }
-            }
+            closest.SendSuccessMessage($"[ShiroCoin] +{drop} SC dari membunuh {type} ({npc.FullName})! Saldo: {newBalance} SC");
         }
 
         // ---- /bal ----
@@ -206,15 +184,7 @@ namespace TerraTopia
                     return;
                 }
 
-                int slot = player.TPlayer.FindEmptyInventorySlot(true);
-                if (slot < 0)
-                {
-                    player.SendErrorMessage("Inventory penuh!");
-                    return;
-                }
-
-                player.TPlayer.inventory[slot] = new Item { netID = item.itemId, stack = item.stack };
-                player.SendData(PacketTypes.PlayerSlot, "", player.Index, slot);
+                player.GiveItem(item.itemId, item.stack);
                 SetBalance(player.Name, balance - item.price);
                 player.SendSuccessMessage($"[ShiroCoin] Kamu membeli {item.name} x{item.stack} seharga {item.price} SC! Saldo tersisa: {balance - item.price} SC");
             }
@@ -224,22 +194,28 @@ namespace TerraTopia
         private void LeaderboardCmd(CommandArgs args)
         {
             var player = args.Player;
-            using (var db = new SqliteDB(_dbPath))
-            {
-                var result = db.Query("SELECT PlayerName, Balance FROM ShiroCoin ORDER BY Balance DESC LIMIT 10");
-                if (result.Count == 0)
-                {
-                    player.SendInfoMessage("[ShiroCoin] Belum ada pemain dengan ShiroCoin.");
-                    return;
-                }
+            using var conn = GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT PlayerName, Balance FROM ShiroCoin ORDER BY Balance DESC LIMIT 10";
+            using var reader = cmd.ExecuteReader();
 
-                player.SendInfoMessage("[ShiroCoin] Leaderboard Top 10:");
-                int rank = 1;
-                foreach (var row in result)
-                {
-                    player.SendMessage($"{rank}. {row[0]} — {row[1]} SC", rank == 1 ? Microsoft.Xna.Framework.Color.Gold : Microsoft.Xna.Framework.Color.White);
-                    rank++;
-                }
+            var rows = new List<(string name, int bal)>();
+            while (reader.Read())
+                rows.Add((reader.GetString(0), reader.GetInt32(1)));
+
+            if (rows.Count == 0)
+            {
+                player.SendInfoMessage("[ShiroCoin] Belum ada pemain dengan ShiroCoin.");
+                return;
+            }
+
+            player.SendInfoMessage("[ShiroCoin] Leaderboard Top 10:");
+            int rank = 1;
+            foreach (var row in rows)
+            {
+                player.SendMessage($"{rank}. {row.name} — {row.bal} SC",
+                    rank == 1 ? Microsoft.Xna.Framework.Color.Gold : Microsoft.Xna.Framework.Color.White);
+                rank++;
             }
         }
     }
