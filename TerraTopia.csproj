@@ -1,26 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <AssemblyName>TerraTopia</AssemblyName>
-    <RootNamespace>TerraTopia</RootNamespace>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
+
+  <!-- Package NuGet untuk SQLite -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+  </ItemGroup>
+
+  <!-- Referensi DLL lokal dari folder libs -->
   <ItemGroup>
     <Reference Include="TShockAPI">
-      <HintPath>libs/TShockAPI.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>libs\TShockAPI.dll</HintPath>
     </Reference>
     <Reference Include="TerrariaServer">
-      <HintPath>libs/TerrariaServer.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="OTAPI">
-      <HintPath>libs/OTAPI.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>libs\TerrariaServer.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-  </ItemGroup>
+
 </Project>
