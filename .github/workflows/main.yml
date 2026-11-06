@@ -1,39 +1,19 @@
-name: Build Plugin
-
+name: Build
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
-
-      - name: Extract OTAPI from zip
-        run: |
-          cd libs
-          unzip -o OTAPI.zip "OTAPI.dll" || unzip -o OTAPI.zip "*.dll" -d otapi_extracted
-          if [ ! -f OTAPI.dll ]; then
-            cp otapi_extracted/*.dll . 2>/dev/null || true
-          fi
-          ls -la
-
-      - name: Restore & Build
-        run: dotnet build TerraTopia.csproj --configuration Release
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          dotnet-version: 9.0.x
+      - name: Extract OTAPI
+        run: unzip -o libs/OTAPI.zip -d libs
+      - name: Build
+        run: dotnet build TerraTopia.csproj -c Release -o out
+      - uses: actions/upload-artifact@v4
         with:
-          name: TerraTopia-Plugin
-          path: bin/Release/net9.0/*.dll
-          
+          name: TerraTopia-dll
+          path: out/TerraTopia.dll
