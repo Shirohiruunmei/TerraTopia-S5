@@ -10,6 +10,7 @@ namespace TerraTopia.Economy
         private readonly EconomyService _economy;
         private readonly RankService _rank;
         private readonly RankConfig _rankCfg;
+        private readonly BossLimitService _bossLimit;
 
         public KillRewards(EconomyConfig config, EconomyService economy, RankService rank, RankConfig rankCfg)
         {
@@ -17,6 +18,7 @@ namespace TerraTopia.Economy
             _economy = economy;
             _rank = rank;
             _rankCfg = rankCfg;
+            _bossLimit = new BossLimitService(TShock.DB);
         }
 
         public void OnNpcKilled(NpcKilledEventArgs e)
@@ -39,7 +41,19 @@ namespace TerraTopia.Economy
                 return;
             }
 
-            long reward = npc.boss ? _config.BossReward : _config.MobReward;
+            long reward;
+            bool isSpecial = _config.SpecialRewards != null
+                && _config.SpecialRewards.TryGetValue(npc.netID.ToString(), out long special);
+
+            if (isSpecial)
+            {
+                reward = special;
+            }
+            else
+            {
+                reward = npc.boss ? _config.BossReward : _config.MobReward;
+            }
+
             if (reward <= 0)
             {
                 return;
@@ -47,7 +61,20 @@ namespace TerraTopia.Economy
 
             string account = player.Account.Name;
 
-            if (!npc.boss && _rankCfg.Enabled)
+            if (npc.boss)
+            {
+                int level = _rank.Get(account);
+                int limit = _rankCfg.GetDailyBossLimit(level);
+
+                if (!_bossLimit.TryUse(account, limit, out int used))
+                {
+                    player.SendErrorMessage($"Batas hadiah boss harian kamu sudah habis ({limit}/{limit}). Coba lagi besok.");
+                    return;
+                }
+
+                player.SendInfoMessage($"Hadiah boss hari ini: {used}/{limit}.");
+            }
+            else if (_rankCfg.Enabled)
             {
                 int level = _rank.Get(account);
                 reward = RankService.ApplyMultiplier(reward, level, _rankCfg);
