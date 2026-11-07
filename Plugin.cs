@@ -1,3 +1,4 @@
+
 using System;
 using Terraria;
 using TerrariaApi.Server;
@@ -47,6 +48,7 @@ namespace TerraTopia
 
                 var shopCmds = new ShopCommands(_economy, _config, ShopConfig.Load());
                 TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "sb"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "shop"));
 
                 TShock.Log.ConsoleInfo("[TerraTopia] Economy dan Shop aktif.");
             }
