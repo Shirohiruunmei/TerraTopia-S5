@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -16,17 +17,17 @@ namespace TerraTopia.Economy
         }
 
         public void Init()
-{
-    lock (_lock)
-    {
-        if (_db.State != ConnectionState.Open)
         {
-            _db.Open();
-        }
+            lock (_lock)
+            {
+                if (_db.State != ConnectionState.Open)
+                {
+                    _db.Open();
+                }
 
-        using var c = Cmd("CREATE TABLE IF NOT EXISTS tt_balances (account TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0)", null);
-        c.ExecuteNonQuery();
-    }
+                using var c = Cmd("CREATE TABLE IF NOT EXISTS tt_balances (account TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0)", null);
+                c.ExecuteNonQuery();
+            }
         }
 
         public long Get(string account)
