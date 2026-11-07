@@ -4,9 +4,11 @@ using TerrariaApi.Server;
 using TShockAPI;
 using TerraTopia.Chat;
 using TerraTopia.Economy;
+using TerraTopia.Home;
 using TerraTopia.Lps;
 using TerraTopia.Rank;
 using TerraTopia.Shop;
+using TerraTopia.Spawn;
 
 namespace TerraTopia
 {
@@ -15,13 +17,14 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat & Player Shop";
-        public override Version Version => new Version(0, 6, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard & Home";
+        public override Version Version => new Version(0, 8, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
         private KillRewards _kills;
         private ChatPrefix _chat;
+        private SpawnGuard _spawnGuard;
 
         public TerraTopiaPlugin(Main game) : base(game) { }
 
@@ -30,6 +33,7 @@ namespace TerraTopia
             ServerApi.Hooks.GameInitialize.Register(this, OnGameInitialize);
             ServerApi.Hooks.NpcKilled.Register(this, OnNpcKilledProxy);
             ServerApi.Hooks.ServerChat.Register(this, OnChatProxy);
+            ServerApi.Hooks.GameUpdate.Register(this, OnGameUpdateProxy);
         }
 
         private void OnGameInitialize(EventArgs args)
@@ -46,6 +50,7 @@ namespace TerraTopia
 
                 _kills = new KillRewards(_config, _economy, rank, rankCfg);
                 _chat = new ChatPrefix(ChatConfig.Load(), rank, rankCfg);
+                _spawnGuard = new SpawnGuard(SpawnGuardConfig.Load());
 
                 var cmds = new EconomyCommands(_economy, _config);
                 TShockAPI.Commands.ChatCommands.Add(new Command(cmds.Bal, "bal"));
@@ -72,7 +77,12 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsc, "lpsc"));
                 TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsk, "lpsk"));
 
-                TShock.Log.ConsoleInfo("[TerraTopia] Economy, Shop, Rank, Chat, dan Player Shop aktif.");
+                var home = new HomeService(TShock.DB);
+                home.Init();
+                var homeCmds = new HomeCommands(home);
+                TShockAPI.Commands.ChatCommands.Add(new Command(homeCmds.SetHome, "sethome"));
+
+                TShock.Log.ConsoleInfo("[TerraTopia] Semua modul aktif.");
             }
             catch (Exception ex)
             {
@@ -90,6 +100,11 @@ namespace TerraTopia
             _chat?.OnChat(e);
         }
 
+        private void OnGameUpdateProxy(EventArgs e)
+        {
+            _spawnGuard?.OnGameUpdate(e);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -97,6 +112,7 @@ namespace TerraTopia
                 ServerApi.Hooks.GameInitialize.Deregister(this, OnGameInitialize);
                 ServerApi.Hooks.NpcKilled.Deregister(this, OnNpcKilledProxy);
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChatProxy);
+                ServerApi.Hooks.GameUpdate.Deregister(this, OnGameUpdateProxy);
             }
             base.Dispose(disposing);
         }
