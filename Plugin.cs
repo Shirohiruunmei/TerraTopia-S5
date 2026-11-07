@@ -2,6 +2,7 @@ using System;
 using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
+using TerraTopia.Chat;
 using TerraTopia.Economy;
 using TerraTopia.Rank;
 using TerraTopia.Shop;
@@ -13,12 +14,13 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop & Rank";
-        public override Version Version => new Version(0, 4, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank & Chat";
+        public override Version Version => new Version(0, 5, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
         private KillRewards _kills;
+        private ChatPrefix _chat;
 
         public TerraTopiaPlugin(Main game) : base(game) { }
 
@@ -26,6 +28,7 @@ namespace TerraTopia
         {
             ServerApi.Hooks.GameInitialize.Register(this, OnGameInitialize);
             ServerApi.Hooks.NpcKilled.Register(this, OnNpcKilledProxy);
+            ServerApi.Hooks.ServerChat.Register(this, OnChatProxy);
         }
 
         private void OnGameInitialize(EventArgs args)
@@ -41,6 +44,7 @@ namespace TerraTopia
                 rank.Init();
 
                 _kills = new KillRewards(_config, _economy, rank, rankCfg);
+                _chat = new ChatPrefix(ChatConfig.Load(), rank, rankCfg);
 
                 var cmds = new EconomyCommands(_economy, _config);
                 TShockAPI.Commands.ChatCommands.Add(new Command(cmds.Bal, "bal"));
@@ -58,7 +62,7 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.ShowRank, "rank"));
                 TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.DoRankUp, "rankup"));
 
-                TShock.Log.ConsoleInfo("[TerraTopia] Economy, Shop, dan Rank aktif.");
+                TShock.Log.ConsoleInfo("[TerraTopia] Economy, Shop, Rank, dan Chat aktif.");
             }
             catch (Exception ex)
             {
@@ -71,12 +75,18 @@ namespace TerraTopia
             _kills?.OnNpcKilled(e);
         }
 
+        private void OnChatProxy(ServerChatEventArgs e)
+        {
+            _chat?.OnChat(e);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
                 ServerApi.Hooks.GameInitialize.Deregister(this, OnGameInitialize);
                 ServerApi.Hooks.NpcKilled.Deregister(this, OnNpcKilledProxy);
+                ServerApi.Hooks.ServerChat.Deregister(this, OnChatProxy);
             }
             base.Dispose(disposing);
         }
