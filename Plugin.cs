@@ -4,7 +4,6 @@ using TerrariaApi.Server;
 using TShockAPI;
 using TerraTopia.Chat;
 using TerraTopia.Economy;
-using TerraTopia.Help;
 using TerraTopia.Home;
 using TerraTopia.Lps;
 using TerraTopia.Rank;
@@ -83,8 +82,7 @@ namespace TerraTopia
                 var homeCmds = new HomeCommands(home);
                 TShockAPI.Commands.ChatCommands.Add(new Command(homeCmds.SetHome, "sethome"));
 
-                var helpCmds = new HelpCommands();
-                TShockAPI.Commands.ChatCommands.Add(new Command(helpCmds.TtHelp, "tthelp"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(TtHelp, "tthelp"));
 
                 TShock.Log.ConsoleInfo("[TerraTopia] Semua modul aktif.");
             }
@@ -92,6 +90,18 @@ namespace TerraTopia
             {
                 TShock.Log.ConsoleError("[TerraTopia] Gagal memulai: " + ex.Message);
             }
+        }
+
+        private void TtHelp(CommandArgs args)
+        {
+            var p = args.Player;
+            p.SendInfoMessage("=== TerraTopia Command ===");
+            p.SendInfoMessage("Uang: /bal, /pay <nama> <jumlah>, /baltop");
+            p.SendInfoMessage("Rank: /rank, /rankup");
+            p.SendInfoMessage("Shop resmi (di area Shop): /shop, /shop <nomor> <jumlah>");
+            p.SendInfoMessage("Player shop: /lps, /lpss <harga>, /lpsb <nomor>, /lpsc <nomor>, /lpsk");
+            p.SendInfoMessage("Rumah: /sethome (berdiri di region rumahmu sendiri)");
+            p.SendInfoMessage("Batas: 3 listing player shop aktif per pemain.");
         }
 
         private void OnNpcKilledProxy(NpcKilledEventArgs e)
