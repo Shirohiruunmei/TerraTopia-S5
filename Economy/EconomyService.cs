@@ -16,12 +16,17 @@ namespace TerraTopia.Economy
         }
 
         public void Init()
+{
+    lock (_lock)
+    {
+        if (_db.State != ConnectionState.Open)
         {
-            lock (_lock)
-            {
-                using var c = Cmd("CREATE TABLE IF NOT EXISTS tt_balances (account TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0)", null);
-                c.ExecuteNonQuery();
-            }
+            _db.Open();
+        }
+
+        using var c = Cmd("CREATE TABLE IF NOT EXISTS tt_balances (account TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0)", null);
+        c.ExecuteNonQuery();
+    }
         }
 
         public long Get(string account)
