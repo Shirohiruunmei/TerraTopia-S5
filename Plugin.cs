@@ -1,9 +1,9 @@
-
 using System;
 using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
 using TerraTopia.Economy;
+using TerraTopia.Rank;
 using TerraTopia.Shop;
 
 namespace TerraTopia
@@ -13,8 +13,8 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy & Shop";
-        public override Version Version => new Version(0, 3, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop & Rank";
+        public override Version Version => new Version(0, 4, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -36,7 +36,11 @@ namespace TerraTopia
                 _economy = new EconomyService(TShock.DB);
                 _economy.Init();
 
-                _kills = new KillRewards(_config, _economy);
+                var rankCfg = RankConfig.Load();
+                var rank = new RankService(TShock.DB);
+                rank.Init();
+
+                _kills = new KillRewards(_config, _economy, rank, rankCfg);
 
                 var cmds = new EconomyCommands(_economy, _config);
                 TShockAPI.Commands.ChatCommands.Add(new Command(cmds.Bal, "bal"));
@@ -50,7 +54,11 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "sb"));
                 TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "shop"));
 
-                TShock.Log.ConsoleInfo("[TerraTopia] Economy dan Shop aktif.");
+                var rankCmds = new RankCommands(rank, rankCfg, _economy, _config);
+                TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.ShowRank, "rank"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.DoRankUp, "rankup"));
+
+                TShock.Log.ConsoleInfo("[TerraTopia] Economy, Shop, dan Rank aktif.");
             }
             catch (Exception ex)
             {
