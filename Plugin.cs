@@ -60,3 +60,71 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command(cmds.Pay, "pay"));
                 TShockAPI.Commands.ChatCommands.Add(new Command(cmds.Baltop, "baltop"));
                 TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.GiveBal, "givebal"));
+                TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.TakeBal, "takebal"));
+                TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.SetBal, "setbal"));
+
+                var shopCmds = new ShopCommands(_economy, _config, ShopConfig.Load());
+                TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "sb"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "shop"));
+
+                var rankCmds = new RankCommands(rank, rankCfg, _economy, _config);
+                TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.ShowRank, "rank"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.DoRankUp, "rankup"));
+
+                var lps = new LpsService(TShock.DB);
+                lps.Init();
+                var lpsCmds = new LpsCommands(lps, _economy, _config);
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lps, "lps"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpss, "lpss"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsb, "lpsb"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsc, "lpsc"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsk, "lpsk"));
+
+                var home = new HomeService(TShock.DB);
+                home.Init();
+                var homeCmds = new HomeCommands(home);
+                TShockAPI.Commands.ChatCommands.Add(new Command(homeCmds.SetHome, "sethome"));
+
+                var helpCmds = new HelpCommands();
+                TShockAPI.Commands.ChatCommands.Add(new Command(helpCmds.TtHelp, "tthelp"));
+
+                _loot = new LootMonitor();
+                _loot.Register();
+
+                TShock.Log.ConsoleInfo("[TerraTopia] Semua modul aktif.");
+            }
+            catch (Exception ex)
+            {
+                TShock.Log.ConsoleError("[TerraTopia] Gagal memulai: " + ex.Message);
+            }
+        }
+
+        private void OnNpcKilledProxy(NpcKilledEventArgs e)
+        {
+            _kills?.OnNpcKilled(e);
+        }
+
+        private void OnChatProxy(ServerChatEventArgs e)
+        {
+            _chat?.OnChat(e);
+        }
+
+        private void OnGameUpdateProxy(EventArgs e)
+        {
+            _spawnGuard?.OnGameUpdate(e);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ServerApi.Hooks.GameInitialize.Deregister(this, OnGameInitialize);
+                ServerApi.Hooks.NpcKilled.Deregister(this, OnNpcKilledProxy);
+                ServerApi.Hooks.ServerChat.Deregister(this, OnChatProxy);
+                ServerApi.Hooks.GameUpdate.Deregister(this, OnGameUpdateProxy);
+                _loot?.Unregister();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}
