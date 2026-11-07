@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using TShockAPI;
@@ -7,8 +8,15 @@ namespace TerraTopia.Economy
     public class EconomyConfig
     {
         public string CurrencyName { get; set; } = "ShiroCoin";
-        public long MobReward { get; set; } = 1;
+        public long MobReward { get; set; } = 10;
         public long BossReward { get; set; } = 50;
+
+        public Dictionary<string, long> SpecialRewards { get; set; } = new Dictionary<string, long>
+        {
+            { "4", 15 },
+            { "50", 10 },
+            { "85", 75 }
+        };
 
         public static EconomyConfig Load()
         {
