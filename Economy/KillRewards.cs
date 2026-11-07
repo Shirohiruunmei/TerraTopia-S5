@@ -1,5 +1,6 @@
 using TerrariaApi.Server;
 using TShockAPI;
+using TerraTopia.Rank;
 
 namespace TerraTopia.Economy
 {
@@ -7,11 +8,15 @@ namespace TerraTopia.Economy
     {
         private readonly EconomyConfig _config;
         private readonly EconomyService _economy;
+        private readonly RankService _rank;
+        private readonly RankConfig _rankCfg;
 
-        public KillRewards(EconomyConfig config, EconomyService economy)
+        public KillRewards(EconomyConfig config, EconomyService economy, RankService rank, RankConfig rankCfg)
         {
             _config = config;
             _economy = economy;
+            _rank = rank;
+            _rankCfg = rankCfg;
         }
 
         public void OnNpcKilled(NpcKilledEventArgs e)
@@ -41,6 +46,13 @@ namespace TerraTopia.Economy
             }
 
             string account = player.Account.Name;
+
+            if (!npc.boss && _rankCfg.Enabled)
+            {
+                int level = _rank.Get(account);
+                reward = RankService.ApplyMultiplier(reward, level, _rankCfg);
+            }
+
             if (_economy.Adjust(account, reward, out _))
             {
                 player.SendMessage($"+{reward} {_config.CurrencyName}", 255, 215, 0);
