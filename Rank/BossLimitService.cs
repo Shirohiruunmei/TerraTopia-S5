@@ -99,7 +99,7 @@ namespace TerraTopia.Rank
             foreach (var (name, value) in parameters)
             {
                 IDbDataParameter p = c.CreateParameter();
-                p.ParameboxName = name;
+                p.ParameName = name;
                 p.Value = value;
                 c.Parameters.Add(p);
             }
