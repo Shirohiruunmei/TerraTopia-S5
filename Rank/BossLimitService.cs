@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using TShockAPI;
 
 namespace TerraTopia.Rank
 {
@@ -76,7 +77,7 @@ namespace TerraTopia.Rank
                 return;
             }
 
-            if (_db.State != ConnectionState.Open)
+            if (_db.State != System.Data.ConnectionState.Open)
             {
                 _db.Open();
             }
@@ -99,7 +100,7 @@ namespace TerraTopia.Rank
             foreach (var (name, value) in parameters)
             {
                 IDbDataParameter p = c.CreateParameter();
-                p.ParameName = name;
+                p.ParameterName = name;
                 p.Value = value;
                 c.Parameters.Add(p);
             }
