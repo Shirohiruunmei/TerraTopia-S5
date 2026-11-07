@@ -56,13 +56,13 @@ namespace TerraTopia.Lps
 
             int sel = p.TPlayer.selectedItem;
             Item held = p.TPlayer.inventory[sel];
-            if (held == null || held.netID == 0 || held.stack <= 0)
+            if (held == null || held.type == 0 || held.stack <= 0)
             {
                 p.SendErrorMessage("Pegang item yang mau dijual di tangan.");
                 return;
             }
 
-            int type = held.netID;
+            int type = held.type;
             int stack = held.stack;
             int prefix = held.prefix;
 
@@ -248,7 +248,7 @@ namespace TerraTopia.Lps
             int max = Math.Min(InventorySlots, inv.Length);
             for (int i = 0; i < max; i++)
             {
-                if (inv[i] == null || inv[i].netID == 0 || inv[i].stack <= 0)
+                if (inv[i] == null || inv[i].type == 0 || inv[i].stack <= 0)
                 {
                     return i;
                 }
