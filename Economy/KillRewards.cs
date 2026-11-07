@@ -87,7 +87,10 @@ namespace TerraTopia.Economy
 
             if (_economy.Adjust(account, reward, out _))
             {
-                player.SendMessage($"+{reward} {_config.CurrencyName}", 255, 215, 0);
+                if (npc.boss || _config.ShowMobReward)
+                {
+                    player.SendMessage($"+{reward} {_config.CurrencyName}", 255, 215, 0);
+                }
             }
         }
     }
