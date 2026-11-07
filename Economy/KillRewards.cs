@@ -42,8 +42,13 @@ namespace TerraTopia.Economy
             }
 
             long reward;
-            bool isSpecial = _config.SpecialRewards != null
-                && _config.SpecialRewards.TryGetValue(npc.netID.ToString(), out long special);
+            long special = 0;
+            bool isSpecial = false;
+
+            if (_config.SpecialRewards != null)
+            {
+                isSpecial = _config.SpecialRewards.TryGetValue(npc.netID.ToString(), out special);
+            }
 
             if (isSpecial)
             {
