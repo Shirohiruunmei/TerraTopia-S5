@@ -3,6 +3,7 @@ using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
 using TerraTopia.Economy;
+using TerraTopia.Shop;
 
 namespace TerraTopia
 {
@@ -11,8 +12,8 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy";
-        public override Version Version => new Version(0, 2, 1);
+        public override string Description => "TerraTopia SMP S5 - Economy & Shop";
+        public override Version Version => new Version(0, 3, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -44,11 +45,14 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.TakeBal, "takebal"));
                 TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.SetBal, "setbal"));
 
-                TShock.Log.ConsoleInfo("[TerraTopia] Economy aktif.");
+                var shopCmds = new ShopCommands(_economy, _config, ShopConfig.Load());
+                TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "sb"));
+
+                TShock.Log.ConsoleInfo("[TerraTopia] Economy dan Shop aktif.");
             }
             catch (Exception ex)
             {
-                TShock.Log.ConsoleError("[TerraTopia] Gagal memulai Economy: " + ex.Message);
+                TShock.Log.ConsoleError("[TerraTopia] Gagal memulai: " + ex.Message);
             }
         }
 
