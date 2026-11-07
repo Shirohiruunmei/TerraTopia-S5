@@ -4,6 +4,7 @@ using TerrariaApi.Server;
 using TShockAPI;
 using TerraTopia.Chat;
 using TerraTopia.Economy;
+using TerraTopia.Lps;
 using TerraTopia.Rank;
 using TerraTopia.Shop;
 
@@ -14,8 +15,8 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank & Chat";
-        public override Version Version => new Version(0, 5, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat & Player Shop";
+        public override Version Version => new Version(0, 6, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -62,7 +63,16 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.ShowRank, "rank"));
                 TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.DoRankUp, "rankup"));
 
-                TShock.Log.ConsoleInfo("[TerraTopia] Economy, Shop, Rank, dan Chat aktif.");
+                var lps = new LpsService(TShock.DB);
+                lps.Init();
+                var lpsCmds = new LpsCommands(lps, _economy, _config);
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lps, "lps"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpss, "lpss"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsb, "lpsb"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsc, "lpsc"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(lpsCmds.Lpsk, "lpsk"));
+
+                TShock.Log.ConsoleInfo("[TerraTopia] Economy, Shop, Rank, Chat, dan Player Shop aktif.");
             }
             catch (Exception ex)
             {
