@@ -5,6 +5,7 @@ using TShockAPI;
 using TerraTopia.Chat;
 using TerraTopia.Economy;
 using TerraTopia.Home;
+using TerraTopia.Loot;
 using TerraTopia.Lps;
 using TerraTopia.Rank;
 using TerraTopia.Shop;
@@ -17,14 +18,15 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard & Home";
-        public override Version Version => new Version(0, 9, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, Home & Loot Monitor";
+        public override Version Version => new Version(0, 10, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
         private KillRewards _kills;
         private ChatPrefix _chat;
         private SpawnGuard _spawnGuard;
+        private LootMonitor _loot;
 
         public TerraTopiaPlugin(Main game) : base(game) { }
 
@@ -84,6 +86,9 @@ namespace TerraTopia
 
                 TShockAPI.Commands.ChatCommands.Add(new Command(TtHelp, "tthelp"));
 
+                _loot = new LootMonitor();
+                _loot.Register();
+
                 TShock.Log.ConsoleInfo("[TerraTopia] Semua modul aktif.");
             }
             catch (Exception ex)
@@ -127,6 +132,7 @@ namespace TerraTopia
                 ServerApi.Hooks.NpcKilled.Deregister(this, OnNpcKilledProxy);
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChatProxy);
                 ServerApi.Hooks.GameUpdate.Deregister(this, OnGameUpdateProxy);
+                _loot?.Unregister();
             }
             base.Dispose(disposing);
         }
