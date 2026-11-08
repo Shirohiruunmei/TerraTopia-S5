@@ -1,21 +1,29 @@
 using System;
-using System.Collections.Generic;
 using Terraria;
 using TShockAPI;
 
 namespace TerraTopia.Boss
 {
-    // Tahap 1: hanya mencatat projectile hostile yang muncul. Tidak mengubah apa pun.
+    // Mengganti projectile Queen Bee menjadi projectile Zenith dengan damage Zenith.
     public class QueenBeeMonitor
     {
-        private const int CheckEveryTicks = 30;
+        private readonly QueenBeeConfig _cfg;
         private int _tick;
-        private readonly HashSet<string> _seen = new HashSet<string>();
+
+        public QueenBeeMonitor()
+        {
+            _cfg = QueenBeeConfig.Load();
+        }
 
         public void OnGameUpdate(EventArgs args)
         {
+            if (!_cfg.Enabled)
+            {
+                return;
+            }
+
             _tick++;
-            if (_tick < CheckEveryTicks)
+            if (_tick < 2)
             {
                 return;
             }
@@ -26,26 +34,44 @@ namespace TerraTopia.Boss
                 for (int i = 0; i < Main.projectile.Length; i++)
                 {
                     Projectile p = Main.projectile[i];
-                    if (p == null || !p.active || !p.hostile)
+                    if (p == null || !p.active || !p.hostile || p.type != _cfg.FromProjectileId)
                     {
                         continue;
                     }
 
-                    string key = p.type + ":" + p.damage;
-                    if (_seen.Contains(key))
+                    int owner = p.owner;
+                    if (owner < 0 || owner >= Main.npc.Length)
                     {
                         continue;
                     }
-                    _seen.Add(key);
 
-                    TShock.Log.ConsoleInfo(
-                        $"[QBMonitor] type={p.type} damage={p.damage} owner={p.owner} aiStyle={p.aiStyle} " +
-                        $"x={p.position.X / 16f:0} y={p.position.Y / 16f:0}");
+                    NPC npc = Main.npc[owner];
+                    if (npc == null || !npc.active || npc.netID != _cfg.BossNpcId)
+                    {
+                        continue;
+                    }
+
+                    // Simpan kondisi projectile, lalu ganti jenisnya ke Zenith.
+                    Vector2 pos = p.position;
+                    Vector2 vel = p.velocity;
+                    int timeLeft = p.timeLeft;
+
+                    p.SetDefaults(_cfg.ToProjectileId);
+                    p.position = pos;
+                    p.velocity = vel;
+                    p.timeLeft = timeLeft;
+                    p.hostile = true;
+                    p.friendly = false;
+                    p.owner = owner;
+                    p.damage = _cfg.Damage;
+                    p.netUpdate = true;
+
+                    NetMessage.SendData(27, -1, -1, null, i);
                 }
             }
             catch (Exception ex)
             {
-                TShock.Log.Error("[TerraTopia] QBMonitor gagal: " + ex.Message);
+                TShock.Log.Error("[TerraTopia] QueenBeeMonitor gagal: " + ex.Message);
             }
         }
     }
