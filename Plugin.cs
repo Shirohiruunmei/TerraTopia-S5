@@ -20,8 +20,8 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, Home, Loot Monitor, Death Teleport & Boss Monitor";
-        public override Version Version => new Version(0, 12, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, Home, Death Teleport & Boss";
+        public override Version Version => new Version(0, 13, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -30,6 +30,7 @@ namespace TerraTopia
         private SpawnGuard _spawnGuard;
         private LootMonitor _loot;
         private DeathTeleport _death;
+        private DeathWatcher _deathWatcher;
         private QueenBeeMonitor _qb;
 
         public TerraTopiaPlugin(Main game) : base(game) { }
@@ -90,7 +91,7 @@ namespace TerraTopia
 
                 _death = new DeathTeleport(TShock.DB, _economy, _config);
                 _death.Init();
-                _death.Register();
+                _deathWatcher = new DeathWatcher(_death);
                 TShockAPI.Commands.ChatCommands.Add(new Command(_death.TpD, "tpd"));
 
                 TShockAPI.Commands.ChatCommands.Add(new Command(TtHelp, "tthelp"));
@@ -134,6 +135,7 @@ namespace TerraTopia
         private void OnGameUpdateProxy(EventArgs e)
         {
             _spawnGuard?.OnGameUpdate(e);
+            _deathWatcher?.OnGameUpdate(e);
             _qb?.OnGameUpdate(e);
         }
 
@@ -146,7 +148,6 @@ namespace TerraTopia
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChatProxy);
                 ServerApi.Hooks.GameUpdate.Deregister(this, OnGameUpdateProxy);
                 _loot?.Unregister();
-                _death?.Unregister();
             }
             base.Dispose(disposing);
         }
