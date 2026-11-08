@@ -10,6 +10,7 @@ using TerraTopia.Lps;
 using TerraTopia.Rank;
 using TerraTopia.Shop;
 using TerraTopia.Spawn;
+using TerraTopia.Teleport;
 
 namespace TerraTopia
 {
@@ -18,8 +19,8 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, Home & Loot Monitor";
-        public override Version Version => new Version(0, 10, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, Home, Loot Monitor & Death Teleport";
+        public override Version Version => new Version(0, 11, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -27,6 +28,7 @@ namespace TerraTopia
         private ChatPrefix _chat;
         private SpawnGuard _spawnGuard;
         private LootMonitor _loot;
+        private DeathTeleport _death;
 
         public TerraTopiaPlugin(Main game) : base(game) { }
 
@@ -84,6 +86,11 @@ namespace TerraTopia
                 var homeCmds = new HomeCommands(home);
                 TShockAPI.Commands.ChatCommands.Add(new Command(homeCmds.SetHome, "sethome"));
 
+                _death = new DeathTeleport(TShock.DB, _economy, _config);
+                _death.Init();
+                _death.Register();
+                TShockAPI.Commands.ChatCommands.Add(new Command(_death.TpD, "tpd"));
+
                 TShockAPI.Commands.ChatCommands.Add(new Command(TtHelp, "tthelp"));
 
                 _loot = new LootMonitor();
@@ -106,6 +113,7 @@ namespace TerraTopia
             p.SendInfoMessage("Shop resmi (di area Shop): /shop, /shop <nomor> <jumlah>");
             p.SendInfoMessage("Player shop: /lps, /lpss <harga>, /lpsb <nomor>, /lpsc <nomor>, /lpsk");
             p.SendInfoMessage("Rumah: /sethome (berdiri di region rumahmu sendiri)");
+            p.SendInfoMessage("Lokasi mati: /tpd (biaya 5 ShiroCoin)");
             p.SendInfoMessage("Batas: 3 listing player shop aktif per pemain.");
         }
 
@@ -133,6 +141,7 @@ namespace TerraTopia
                 ServerApi.Hooks.ServerChat.Deregister(this, OnChatProxy);
                 ServerApi.Hooks.GameUpdate.Deregister(this, OnGameUpdateProxy);
                 _loot?.Unregister();
+                _death?.Unregister();
             }
             base.Dispose(disposing);
         }
