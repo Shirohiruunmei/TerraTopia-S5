@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Reflection;
 using TShockAPI;
 using TerraTopia.Economy;
 
@@ -15,7 +13,6 @@ namespace TerraTopia.Teleport
         private readonly EconomyService _economy;
         private readonly EconomyConfig _econ;
         private readonly object _lock = new object();
-        private readonly List<KeyValuePair<EventInfo, Delegate>> _subs = new List<KeyValuePair<EventInfo, Delegate>>();
 
         public DeathTeleport(IDbConnection db, EconomyService economy, EconomyConfig econ)
         {
@@ -40,60 +37,17 @@ namespace TerraTopia.Teleport
             }
         }
 
-        public void Register()
+        public void SaveDeath(string account, int x, int y)
         {
-            try
+            lock (_lock)
             {
-                foreach (var t in typeof(TShock).Assembly.GetTypes())
+                using (var c = Cmd(
+                    "INSERT INTO tt_last_death (account, x, y) VALUES (@a, @x, @y) ON CONFLICT(account) DO UPDATE SET x = @x, y = @y",
+                    null, ("@a", account), ("@x", x), ("@y", y)))
                 {
-                    if (t.Namespace == null || !t.Namespace.StartsWith("TShockAPI"))
-                    {
-                        continue;
-                    }
-
-                    foreach (var ev in t.GetEvents(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
-                    {
-                        if (!ev.Name.Contains("PlayerDeath"))
-                        {
-                            continue;
-                        }
-
-                        var adder = ev.GetAddMethod(true);
-                        if (adder == null || !adder.IsStatic)
-                        {
-                            continue;
-                        }
-
-                        Delegate handler = MakeHandler(ev.EventHandlerType);
-                        if (handler == null)
-                        {
-                            continue;
-                        }
-
-                        ev.AddEventHandler(null, handler);
-                        _subs.Add(new KeyValuePair<EventInfo, Delegate>(ev, handler));
-                        TShock.Log.ConsoleInfo($"[TpD] Terhubung ke {t.FullName}.{ev.Name}");
-                    }
+                    c.ExecuteNonQuery();
                 }
             }
-            catch (Exception ex)
-            {
-                TShock.Log.Error("[TerraTopia] DeathTeleport gagal mencari event: " + ex.Message);
-            }
-
-            if (_subs.Count == 0)
-            {
-                TShock.Log.ConsoleInfo("[TpD] Event kematian tidak ditemukan. /tpd tidak akan punya data.");
-            }
-        }
-
-        public void Unregister()
-        {
-            foreach (var s in _subs)
-            {
-                try { s.Key.RemoveEventHandler(null, s.Value); } catch { }
-            }
-            _subs.Clear();
         }
 
         public void TpD(CommandArgs args)
@@ -134,19 +88,6 @@ namespace TerraTopia.Teleport
             p.SendSuccessMessage($"Kamu dipindahkan ke lokasi mati terakhir. Biaya {Cost} {_econ.CurrencyName}.");
         }
 
-        private void SaveDeath(string account, int x, int y)
-        {
-            lock (_lock)
-            {
-                using (var c = Cmd(
-                    "INSERT INTO tt_last_death (account, x, y) VALUES (@a, @x, @y) ON CONFLICT(account) DO UPDATE SET x = @x, y = @y",
-                    null, ("@a", account), ("@x", x), ("@y", y)))
-                {
-                    c.ExecuteNonQuery();
-                }
-            }
-        }
-
         private bool GetLastDeath(string account, out int x, out int y)
         {
             x = 0;
@@ -165,64 +106,6 @@ namespace TerraTopia.Teleport
                     return true;
                 }
             }
-        }
-
-        private Delegate MakeHandler(Type delegateType)
-        {
-            var invoke = delegateType.GetMethod("Invoke");
-            if (invoke == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                int count = invoke.GetParameters().Length;
-                if (count == 2)
-                {
-                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnDeath2), BindingFlags.NonPublic | BindingFlags.Instance));
-                }
-                if (count == 1)
-                {
-                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnDeath1), BindingFlags.NonPublic | BindingFlags.Instance));
-                }
-            }
-            catch { }
-            return null;
-        }
-
-        private void OnDeath2(object sender, object e) => HandleDeath(e);
-
-        private void OnDeath1(object e) => HandleDeath(e);
-
-        private void HandleDeath(object e)
-        {
-            try
-            {
-                if (e == null)
-                {
-                    return;
-                }
-
-                var player = GetValue(e, "Player") as TSPlayer;
-                if (player?.Account == null)
-                {
-                    return;
-                }
-
-                SaveDeath(player.Account.Name, player.TileX, player.TileY);
-            }
-            catch (Exception ex)
-            {
-                TShock.Log.Error("[TerraTopia] Catat lokasi mati gagal: " + ex.Message);
-            }
-        }
-
-        private static object GetValue(object obj, string prop)
-        {
-            return obj.GetType()
-                .GetProperty(prop, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-                ?.GetValue(obj);
         }
 
         private IDbCommand Cmd(string sql, IDbTransaction tx, params (string, object)[] parameters)
