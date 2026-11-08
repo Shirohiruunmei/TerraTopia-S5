@@ -51,9 +51,8 @@ namespace TerraTopia.Boss
                         continue;
                     }
 
-                    // Simpan kondisi projectile, lalu ganti jenisnya ke Zenith.
-                    Vector2 pos = p.position;
-                    Vector2 vel = p.velocity;
+                    var pos = p.position;
+                    var vel = p.velocity;
                     int timeLeft = p.timeLeft;
 
                     p.SetDefaults(_cfg.ToProjectileId);
