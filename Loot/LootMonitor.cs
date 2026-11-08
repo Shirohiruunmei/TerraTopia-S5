@@ -11,7 +11,7 @@ namespace TerraTopia.Loot
 
         public void Register()
         {
-            TShockAPI.Hooks.PlayerHooks.ChestOpen += e => OnChestOpen(e);
+            TShockAPI.Hooks.PlayerHooks.OnChestOpen += e => OnChestOpen(e);
             TShock.Log.ConsoleInfo("[TerraTopia] LootMonitor aktif (tahap 1: hanya mencatat).");
         }
 
