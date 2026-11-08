@@ -28,12 +28,7 @@ namespace TerraTopia.BossBlock
             }
 
             e.Handled = true;
-
-            int who = e.Who;
-            if (who >= 0 && who < TShock.Players.Length && TShock.Players[who] != null)
-            {
-                TShock.Players[who].SendErrorMessage(_cfg.Message);
-            }
+            TSPlayer.All.SendErrorMessage(_cfg.Message);
         }
     }
 }
