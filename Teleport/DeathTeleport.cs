@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 using System.Reflection;
 using TShockAPI;
 using TerraTopia.Economy;
@@ -29,7 +28,7 @@ namespace TerraTopia.Teleport
         {
             lock (_lock)
             {
-                if (_db.State != ConnectionState.Open)
+                if (_db.State != System.Data.ConnectionState.Open)
                 {
                     _db.Open();
                 }
