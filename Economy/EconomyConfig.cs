@@ -11,7 +11,9 @@ namespace TerraTopia.Economy
         public long MobReward { get; set; } = 10;
         public long BossReward { get; set; } = 50;
 
-        // Tampilkan notifikasi "+X ShiroCoin" di chat untuk setiap kill mob biasa dan mob khusus.
+        // Hadiah untuk mob yang muncul dari patung. 0 = tidak dapat koin (anti farm patung).
+        public long StatueMobReward { get; set; } = 0;
+
         public bool ShowMobReward { get; set; } = false;
 
         public Dictionary<string, long> SpecialRewards { get; set; } = new Dictionary<string, long>
