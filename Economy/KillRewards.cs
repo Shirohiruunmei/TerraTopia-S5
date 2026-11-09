@@ -50,13 +50,17 @@ namespace TerraTopia.Economy
                 isSpecial = _config.SpecialRewards.TryGetValue(npc.netID.ToString(), out special);
             }
 
-            if (isSpecial)
+            if (npc.boss)
             {
-                reward = special;
+                reward = isSpecial ? special : _config.BossReward;
+            }
+            else if (npc.SpawnedFromStatue)
+            {
+                reward = _config.StatueMobReward;
             }
             else
             {
-                reward = npc.boss ? _config.BossReward : _config.MobReward;
+                reward = isSpecial ? special : _config.MobReward;
             }
 
             if (reward <= 0)
@@ -79,7 +83,7 @@ namespace TerraTopia.Economy
 
                 player.SendInfoMessage($"Hadiah boss hari ini: {used}/{limit}.");
             }
-            else if (_rankCfg.Enabled)
+            else if (_rankCfg.Enabled && !isSpecial)
             {
                 int level = _rank.Get(account);
                 reward = RankService.ApplyMultiplier(reward, level, _rankCfg);
