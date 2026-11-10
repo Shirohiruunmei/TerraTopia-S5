@@ -194,7 +194,7 @@ Backup `tshock.sqlite` secara berkala, terutama sebelum update.
 
 ## Lisensi
 
-Belum ditentukan. Tambahkan file `LICENSE` sebelum repo dibuat publik (misalnya MIT).
+TerraTopia SMP
 
 ## Kredit
 
