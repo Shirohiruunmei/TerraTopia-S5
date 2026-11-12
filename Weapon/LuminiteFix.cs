@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Terraria;
@@ -14,12 +15,15 @@ namespace TerraTopia.Weapon
         private DateTime _lastWrite;
         private int _tick;
         private bool _warnedClamp;
+        private bool _loggedArgs;
+        private readonly List<KeyValuePair<EventInfo, Delegate>> _subs = new List<KeyValuePair<EventInfo, Delegate>>();
 
         public LuminiteFix()
         {
             _cfg = LuminiteConfig.Load();
             _lastWrite = File.GetLastWriteTimeUtc(LuminiteConfig.PathFile);
             LogActive();
+            RegisterCreationLog();
         }
 
         public void OnGameUpdate(EventArgs args)
@@ -60,6 +64,98 @@ namespace TerraTopia.Weapon
             {
                 TShock.Log.Error("[TerraTopia] LuminiteFix gagal: " + ex.Message);
             }
+        }
+
+        // Diagnostik: mencatat isi event projectile baru. Belum mengubah damage.
+        private void RegisterCreationLog()
+        {
+            try
+            {
+                foreach (var t in typeof(TShock).Assembly.GetTypes())
+                {
+                    if (t.Namespace == null || !t.Namespace.StartsWith("TShockAPI"))
+                    {
+                        continue;
+                    }
+
+                    foreach (var ev in t.GetEvents(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+                    {
+                        if (!ev.Name.Contains("ProjectileNew"))
+                        {
+                            continue;
+                        }
+
+                        var adder = ev.GetAddMethod(true);
+                        if (adder == null || !adder.IsStatic)
+                        {
+                            continue;
+                        }
+
+                        Delegate handler = MakeHandler(ev.EventHandlerType);
+                        if (handler == null)
+                        {
+                            continue;
+                        }
+
+                        ev.AddEventHandler(null, handler);
+                        _subs.Add(new KeyValuePair<EventInfo, Delegate>(ev, handler));
+                        TShock.Log.ConsoleInfo($"[LuminiteFix] Terhubung ke {t.FullName}.{ev.Name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TShock.Log.Error("[TerraTopia] LuminiteFix gagal mencari event projectile: " + ex.Message);
+            }
+
+            if (_subs.Count == 0)
+            {
+                TShock.Log.ConsoleInfo("[LuminiteFix] Event ProjectileNew tidak ditemukan.");
+            }
+        }
+
+        private Delegate MakeHandler(Type delegateType)
+        {
+            var invoke = delegateType.GetMethod("Invoke");
+            if (invoke == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                int count = invoke.GetParameters().Length;
+                if (count == 2)
+                {
+                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnNew2), BindingFlags.NonPublic | BindingFlags.Instance));
+                }
+                if (count == 1)
+                {
+                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnNew1), BindingFlags.NonPublic | BindingFlags.Instance));
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private void OnNew2(object sender, object e) => OnNew(e);
+
+        private void OnNew1(object e) => OnNew(e);
+
+        private void OnNew(object e)
+        {
+            if (e == null || _loggedArgs)
+            {
+                return;
+            }
+
+            _loggedArgs = true;
+            var names = new List<string>();
+            foreach (var prop in e.GetType().GetProperties())
+            {
+                names.Add(prop.Name + ":" + prop.PropertyType.Name);
+            }
+            TShock.Log.ConsoleInfo("[LuminiteFix] Field event ProjectileNew: " + string.Join(", ", names));
         }
 
         private void ReloadIfChanged()
