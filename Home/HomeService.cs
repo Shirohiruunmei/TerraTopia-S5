@@ -42,6 +42,17 @@ namespace TerraTopia.Home
             }
         }
 
+        public void Delete(string account)
+        {
+            lock (_lock)
+            {
+                using (var c = Cmd("DELETE FROM tt_homes WHERE account = @a", null, ("@a", account)))
+                {
+                    c.ExecuteNonQuery();
+                }
+            }
+        }
+
         public bool Get(string account, out int x, out int y)
         {
             x = 0;
