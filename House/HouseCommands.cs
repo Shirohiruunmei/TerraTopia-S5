@@ -109,7 +109,7 @@ namespace TerraTopia.House
                 return;
             }
 
-            bool ok = TShock.Regions.AddRegion(x1, y1, width, height, name, account, Main.worldID);
+            bool ok = TShock.Regions.AddRegion(x1, y1, width, height, name, account, Main.worldID.ToString());
             if (!ok)
             {
                 p.SendErrorMessage("Gagal membuat region rumah. Coba lagi atau hubungi admin.");
