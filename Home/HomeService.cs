@@ -1,75 +1,91 @@
-using TShockAPI;
+using System;
+using System.Data;
 
 namespace TerraTopia.Home
 {
-    public class HomeCommands
+    public class HomeService
     {
-        private readonly HomeService _home;
+        private readonly IDbConnection _db;
+        private readonly object _lock = new object();
 
-        public HomeCommands(HomeService home)
+        public HomeService(IDbConnection db)
         {
-            _home = home;
+            _db = db;
         }
 
-        public void SetHome(CommandArgs args)
+        public void Init()
         {
-            var p = args.Player;
-            string account = p.Account?.Name;
-            if (account == null)
+            lock (_lock)
             {
-                p.SendErrorMessage("Kamu harus login dulu.");
-                return;
-            }
-
-            int x = p.TileX;
-            int y = p.TileY;
-
-            string ownedRegion = null;
-            var names = TShock.Regions.InAreaRegionName(x, y);
-            if (names != null)
-            {
-                foreach (var name in names)
+                if (_db.State != System.Data.ConnectionState.Open)
                 {
-                    var region = TShock.Regions.GetRegionByName(name);
-                    if (region != null && region.Owner == account)
-                    {
-                        ownedRegion = name;
-                        break;
-                    }
+                    _db.Open();
+                }
+
+                using (var c = Cmd("CREATE TABLE IF NOT EXISTS tt_homes (account TEXT PRIMARY KEY, region TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL)", null))
+                {
+                    c.ExecuteNonQuery();
                 }
             }
-
-            if (ownedRegion == null)
-            {
-                p.SendErrorMessage("Berdiri di dalam region rumahmu sendiri dulu, lalu ketik /sethome.");
-                return;
-            }
-
-            _home.Set(account, ownedRegion, x, y);
-            p.TPlayer.SpawnX = x;
-            p.TPlayer.SpawnY = y;
-
-            p.SendSuccessMessage($"Rumah diset di region {ownedRegion}. Pakai /tph untuk kembali ke rumah.");
         }
 
-        public void TpH(CommandArgs args)
+        public void Set(string account, string region, int x, int y)
         {
-            var p = args.Player;
-            string account = p.Account?.Name;
-            if (account == null)
+            lock (_lock)
             {
-                p.SendErrorMessage("Kamu harus login dulu.");
-                return;
+                using (var c = Cmd(
+                    "INSERT INTO tt_homes (account, region, x, y) VALUES (@a, @r, @x, @y) ON CONFLICT(account) DO UPDATE SET region = @r, x = @x, y = @y",
+                    null, ("@a", account), ("@r", region), ("@x", x), ("@y", y)))
+                {
+                    c.ExecuteNonQuery();
+                }
             }
+        }
 
-            if (!_home.Get(account, out int x, out int y))
+        public void Delete(string account)
+        {
+            lock (_lock)
             {
-                p.SendErrorMessage("Kamu belum punya rumah. Berdiri di region rumahmu lalu ketik /sethome.");
-                return;
+                using (var c = Cmd("DELETE FROM tt_homes WHERE account = @a", null, ("@a", account)))
+                {
+                    c.ExecuteNonQuery();
+                }
             }
+        }
 
-            p.Teleport(x * 16f, y * 16f);
-            p.SendSuccessMessage("Kamu dipindahkan ke rumahmu.");
+        public bool Get(string account, out int x, out int y)
+        {
+            x = 0;
+            y = 0;
+            lock (_lock)
+            {
+                using (var c = Cmd("SELECT x, y FROM tt_homes WHERE account = @a", null, ("@a", account)))
+                using (var r = c.ExecuteReader())
+                {
+                    if (!r.Read())
+                    {
+                        return false;
+                    }
+                    x = Convert.ToInt32(r[0]);
+                    y = Convert.ToInt32(r[1]);
+                    return true;
+                }
+            }
+        }
+
+        private IDbCommand Cmd(string sql, IDbTransaction tx, params (string, object)[] parameters)
+        {
+            IDbCommand c = _db.CreateCommand();
+            c.CommandText = sql;
+            c.Transaction = tx;
+            foreach (var (name, value) in parameters)
+            {
+                IDbDataParameter p = c.CreateParameter();
+                p.ParameterName = name;
+                p.Value = value;
+                c.Parameters.Add(p);
+            }
+            return c;
         }
     }
 }
