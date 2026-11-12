@@ -21,7 +21,7 @@ namespace TerraTopia
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
         public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, House, Death Teleport & Boss Block";
-        public override Version Version => new Version(0, 19, 0);
+        public override Version Version => new Version(0, 20, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -92,6 +92,7 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command(homeCmds.TpH, "tph"));
 
                 var houseCmds = new HouseCommands(home);
+                houseCmds.RegisterTileHook();
                 TShockAPI.Commands.ChatCommands.Add(new Command(houseCmds.House, "house"));
 
                 _death = new DeathTeleport(TShock.DB, _economy, _config);
@@ -117,7 +118,7 @@ namespace TerraTopia
             p.SendInfoMessage("Rank: /rank, /rankup");
             p.SendInfoMessage("Shop resmi (di area Shop): /shop, /shop <nomor> <jumlah>");
             p.SendInfoMessage("Player shop: /lps, /lpss <harga>, /lpsb <nomor>, /lpsc <nomor>, /lpsk");
-            p.SendInfoMessage("Rumah: /house set 1, /house set 2, /house define, /house info, /house delete");
+            p.SendInfoMessage("Rumah: /house set 1 lalu pukul block, /house set 2 lalu pukul block, /house define");
             p.SendInfoMessage("Kembali ke rumah: /tph");
             p.SendInfoMessage("Lokasi mati: /tpd (biaya 5 ShiroCoin)");
             p.SendInfoMessage("Batas: 3 listing player shop aktif per pemain.");
