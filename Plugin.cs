@@ -21,7 +21,7 @@ namespace TerraTopia
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
         public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, House, Death Teleport & Boss Block";
-        public override Version Version => new Version(0, 20, 0);
+        public override Version Version => new Version(0, 21, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -94,6 +94,9 @@ namespace TerraTopia
                 var houseCmds = new HouseCommands(home);
                 houseCmds.RegisterTileHook();
                 TShockAPI.Commands.ChatCommands.Add(new Command(houseCmds.House, "house"));
+
+                var chestGuard = new ChestGuard();
+                chestGuard.Register();
 
                 _death = new DeathTeleport(TShock.DB, _economy, _config);
                 _death.Init();
