@@ -18,6 +18,7 @@ namespace TerraTopia.Weapon
         {
             _cfg = LuminiteConfig.Load();
             _lastWrite = File.GetLastWriteTimeUtc(LuminiteConfig.PathFile);
+            TShock.Log.ConsoleInfo($"[LuminiteFix] Aktif: projectileId={_cfg.ProjectileId}, damage={_cfg.Damage}, disableCrit={_cfg.DisableCrit}, enabled={_cfg.Enabled}.");
         }
 
         public void OnGameUpdate(EventArgs args)
