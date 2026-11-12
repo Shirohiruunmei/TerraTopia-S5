@@ -21,7 +21,7 @@ namespace TerraTopia
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
         public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, House, Death Teleport & Boss Block";
-        public override Version Version => new Version(0, 21, 0);
+        public override Version Version => new Version(0, 23, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -68,9 +68,14 @@ namespace TerraTopia
                 TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.TakeBal, "takebal"));
                 TShockAPI.Commands.ChatCommands.Add(new Command("terratopia.admin", cmds.SetBal, "setbal"));
 
-                var shopCmds = new ShopCommands(_economy, _config, ShopConfig.Load());
+                var shopCfg = ShopConfig.Load();
+                var shopCmds = new ShopCommands(_economy, _config, shopCfg);
                 TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "sb"));
                 TShockAPI.Commands.ChatCommands.Add(new Command(shopCmds.Sb, "shop"));
+
+                var shopTp = new ShopTeleport(shopCfg);
+                TShockAPI.Commands.ChatCommands.Add(new Command(shopTp.TpShop, "tps"));
+                TShockAPI.Commands.ChatCommands.Add(new Command(shopTp.TpShop, "tpshop"));
 
                 var rankCmds = new RankCommands(rank, rankCfg, _economy, _config);
                 TShockAPI.Commands.ChatCommands.Add(new Command(rankCmds.ShowRank, "rank"));
@@ -120,6 +125,7 @@ namespace TerraTopia
             p.SendInfoMessage("Uang: /bal, /pay <nama> <jumlah>, /baltop");
             p.SendInfoMessage("Rank: /rank, /rankup");
             p.SendInfoMessage("Shop resmi (di area Shop): /shop, /shop <nomor> <jumlah>");
+            p.SendInfoMessage("Ke shop: /tps atau /tpshop");
             p.SendInfoMessage("Player shop: /lps, /lpss <harga>, /lpsb <nomor>, /lpsc <nomor>, /lpsk");
             p.SendInfoMessage("Rumah: /house set 1, /house set 2, /house define, /house info, /house delete");
             p.SendInfoMessage("Kembali ke rumah: /tph");
