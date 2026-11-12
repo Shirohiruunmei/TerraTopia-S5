@@ -13,12 +13,13 @@ namespace TerraTopia.Weapon
         private LuminiteConfig _cfg;
         private DateTime _lastWrite;
         private int _tick;
+        private bool _warnedClamp;
 
         public LuminiteFix()
         {
             _cfg = LuminiteConfig.Load();
             _lastWrite = File.GetLastWriteTimeUtc(LuminiteConfig.PathFile);
-            TShock.Log.ConsoleInfo($"[LuminiteFix] Aktif: projectileId={_cfg.ProjectileId}, damage={_cfg.Damage}, disableCrit={_cfg.DisableCrit}, enabled={_cfg.Enabled}.");
+            LogActive();
         }
 
         public void OnGameUpdate(EventArgs args)
@@ -37,6 +38,8 @@ namespace TerraTopia.Weapon
                     return;
                 }
 
+                int damage = _cfg.EffectiveDamage;
+
                 for (int i = 0; i < Main.projectile.Length; i++)
                 {
                     Projectile p = Main.projectile[i];
@@ -45,7 +48,7 @@ namespace TerraTopia.Weapon
                         continue;
                     }
 
-                    p.damage = _cfg.Damage;
+                    p.damage = damage;
 
                     if (_cfg.DisableCrit)
                     {
@@ -69,7 +72,19 @@ namespace TerraTopia.Weapon
 
             _lastWrite = now;
             _cfg = LuminiteConfig.Load();
-            TShock.Log.ConsoleInfo($"[TerraTopia] luminite.json dimuat ulang: damage={_cfg.Damage}, enabled={_cfg.Enabled}.");
+            _warnedClamp = false;
+            LogActive();
+        }
+
+        private void LogActive()
+        {
+            TShock.Log.ConsoleInfo($"[LuminiteFix] Aktif: projectileId={_cfg.ProjectileId}, damage={_cfg.EffectiveDamage}, maxDamage={_cfg.MaxDamage}, disableCrit={_cfg.DisableCrit}, enabled={_cfg.Enabled}.");
+
+            if (!_warnedClamp && _cfg.MaxDamage > 0 && _cfg.Damage > _cfg.MaxDamage)
+            {
+                _warnedClamp = true;
+                TShock.Log.ConsoleInfo($"[LuminiteFix] Peringatan: Damage={_cfg.Damage} melebihi MaxDamage={_cfg.MaxDamage}, dipotong ke {_cfg.MaxDamage}.");
+            }
         }
 
         private static void DisableCrit(Projectile p)
