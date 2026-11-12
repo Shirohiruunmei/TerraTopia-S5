@@ -7,7 +7,8 @@ namespace TerraTopia.House
 {
     public class ChestGuard
     {
-        private readonly List<KeyValuePair<EventInfo, Delegate>> _subs = new List<KeyValuePair<EventInfo, Delegate>>();
+        private bool _loggedArgs;
+        private readonly List<Action> _unhooks = new List<Action>();
 
         public void Register()
         {
@@ -20,15 +21,10 @@ namespace TerraTopia.House
                         continue;
                     }
 
+                    // Cari sebagai event.
                     foreach (var ev in t.GetEvents(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
                     {
-                        if (!ev.Name.Contains("ChestOpen"))
-                        {
-                            continue;
-                        }
-
-                        var adder = ev.GetAddMethod(true);
-                        if (adder == null || !adder.IsStatic)
+                        if (!ev.Name.Contains("ChestOpen") || !ev.GetAddMethod(true).IsStatic)
                         {
                             continue;
                         }
@@ -40,8 +36,36 @@ namespace TerraTopia.House
                         }
 
                         ev.AddEventHandler(null, handler);
-                        _subs.Add(new KeyValuePair<EventInfo, Delegate>(ev, handler));
-                        TShock.Log.ConsoleInfo($"[ChestGuard] Terhubung ke {t.FullName}.{ev.Name}");
+                        _unhooks.Add(() => { try { ev.RemoveEventHandler(null, handler); } catch { } });
+                        TShock.Log.ConsoleInfo($"[ChestGuard] Terhubung (event) ke {t.FullName}.{ev.Name}");
+                    }
+
+                    // Cari sebagai field delegate statis.
+                    foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                    {
+                        if (!f.Name.Contains("ChestOpen") || !typeof(Delegate).IsAssignableFrom(f.FieldType))
+                        {
+                            continue;
+                        }
+
+                        Delegate handler = MakeHandler(f.FieldType);
+                        if (handler == null)
+                        {
+                            continue;
+                        }
+
+                        var current = f.GetValue(null) as Delegate;
+                        f.SetValue(null, Delegate.Combine(current, handler));
+                        _unhooks.Add(() =>
+                        {
+                            try
+                            {
+                                var now = f.GetValue(null) as Delegate;
+                                f.SetValue(null, Delegate.Remove(now, handler));
+                            }
+                            catch { }
+                        });
+                        TShock.Log.ConsoleInfo($"[ChestGuard] Terhubung (field) ke {t.FullName}.{f.Name}");
                     }
                 }
             }
@@ -50,19 +74,67 @@ namespace TerraTopia.House
                 TShock.Log.Error("[TerraTopia] ChestGuard gagal mencari event: " + ex.Message);
             }
 
-            if (_subs.Count == 0)
+            if (_unhooks.Count == 0)
             {
-                TShock.Log.ConsoleInfo("[ChestGuard] Event buka chest tidak ditemukan. Proteksi chest rumah tidak aktif.");
+                TShock.Log.ConsoleInfo("[ChestGuard] Tidak ada event atau field ChestOpen yang cocok. Proteksi chest rumah tidak aktif.");
             }
         }
 
-        private void OnChestOpen(object e)
+        public void Unregister()
+        {
+            foreach (var u in _unhooks)
+            {
+                u();
+            }
+            _unhooks.Clear();
+        }
+
+        private Delegate MakeHandler(Type delegateType)
+        {
+            var invoke = delegateType.GetMethod("Invoke");
+            if (invoke == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                int count = invoke.GetParameters().Length;
+                if (count == 2)
+                {
+                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnChest2), BindingFlags.NonPublic | BindingFlags.Instance));
+                }
+                if (count == 1)
+                {
+                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnChest1), BindingFlags.NonPublic | BindingFlags.Instance));
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private void OnChest2(object sender, object e) => OnChest(e);
+
+        private void OnChest1(object e) => OnChest(e);
+
+        private void OnChest(object e)
         {
             try
             {
                 if (e == null)
                 {
                     return;
+                }
+
+                if (!_loggedArgs)
+                {
+                    _loggedArgs = true;
+                    var names = new List<string>();
+                    foreach (var prop in e.GetType().GetProperties())
+                    {
+                        names.Add(prop.Name + ":" + prop.PropertyType.Name);
+                    }
+                    TShock.Log.ConsoleInfo("[ChestGuard] Field event buka chest: " + string.Join(", ", names));
                 }
 
                 var player = GetValue(e, "Player") as TSPlayer;
@@ -80,20 +152,20 @@ namespace TerraTopia.House
                 object yo = GetValue(e, "Y");
                 if (xo == null || yo == null)
                 {
-                    TShock.Log.ConsoleInfo("[ChestGuard] Field X/Y tidak ditemukan di event buka chest.");
+                    TShock.Log.ConsoleInfo("[ChestGuard] Field X/Y tidak ditemukan. Kirim baris 'Field event buka chest' dari log.");
                     return;
                 }
 
                 int x = Convert.ToInt32(xo);
                 int y = Convert.ToInt32(yo);
 
-                var names = TShock.Regions.InAreaRegionName(x, y);
-                if (names == null)
+                var names2 = TShock.Regions.InAreaRegionName(x, y);
+                if (names2 == null)
                 {
                     return;
                 }
 
-                foreach (var name in names)
+                foreach (var name in names2)
                 {
                     if (!name.StartsWith("house_"))
                     {
@@ -123,34 +195,6 @@ namespace TerraTopia.House
             }
         }
 
-        private Delegate MakeHandler(Type delegateType)
-        {
-            var invoke = delegateType.GetMethod("Invoke");
-            if (invoke == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                int count = invoke.GetParameters().Length;
-                if (count == 2)
-                {
-                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnChestOpen2), BindingFlags.NonPublic | BindingFlags.Instance));
-                }
-                if (count == 1)
-                {
-                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnChestOpen1), BindingFlags.NonPublic | BindingFlags.Instance));
-                }
-            }
-            catch { }
-            return null;
-        }
-
-        private void OnChestOpen2(object sender, object e) => OnChestOpen(e);
-
-        private void OnChestOpen1(object e) => OnChestOpen(e);
-
         private static object GetValue(object obj, string prop)
         {
             return obj.GetType()
@@ -165,4 +209,4 @@ namespace TerraTopia.House
                 ?.SetValue(obj, true);
         }
     }
-}
+}p
