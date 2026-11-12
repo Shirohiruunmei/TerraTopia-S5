@@ -42,6 +42,26 @@ namespace TerraTopia.Home
             }
         }
 
+        public bool Get(string account, out int x, out int y)
+        {
+            x = 0;
+            y = 0;
+            lock (_lock)
+            {
+                using (var c = Cmd("SELECT x, y FROM tt_homes WHERE account = @a", null, ("@a", account)))
+                using (var r = c.ExecuteReader())
+                {
+                    if (!r.Read())
+                    {
+                        return false;
+                    }
+                    x = Convert.ToInt32(r[0]);
+                    y = Convert.ToInt32(r[1]);
+                    return true;
+                }
+            }
+        }
+
         private IDbCommand Cmd(string sql, IDbTransaction tx, params (string, object)[] parameters)
         {
             IDbCommand c = _db.CreateCommand();
