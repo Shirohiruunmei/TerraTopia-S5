@@ -12,7 +12,6 @@ using TerraTopia.Rank;
 using TerraTopia.Shop;
 using TerraTopia.Spawn;
 using TerraTopia.Teleport;
-using TerraTopia.Weapon;
 
 namespace TerraTopia
 {
@@ -21,8 +20,8 @@ namespace TerraTopia
     {
         public override string Name => "TerraTopia";
         public override string Author => "TerraTopia";
-        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, House, Death Teleport, Boss Block & Weapon Fix";
-        public override Version Version => new Version(0, 22, 0);
+        public override string Description => "TerraTopia SMP S5 - Economy, Shop, Rank, Chat, Player Shop, Spawn Guard, House, Death Teleport & Boss Block";
+        public override Version Version => new Version(0, 21, 0);
 
         private EconomyConfig _config;
         private EconomyService _economy;
@@ -32,7 +31,6 @@ namespace TerraTopia
         private DeathTeleport _death;
         private DeathWatcher _deathWatcher;
         private BossBlocker _bossBlocker;
-        private LuminiteFix _luminite;
 
         public TerraTopiaPlugin(Main game) : base(game) { }
 
@@ -61,7 +59,6 @@ namespace TerraTopia
                 _chat = new ChatPrefix(ChatConfig.Load(), rank, rankCfg);
                 _spawnGuard = new SpawnGuard(SpawnGuardConfig.Load());
                 _bossBlocker = new BossBlocker(BossBlockConfig.Load());
-                _luminite = new LuminiteFix();
 
                 var cmds = new EconomyCommands(_economy, _config);
                 TShockAPI.Commands.ChatCommands.Add(new Command(cmds.Bal, "bal"));
@@ -145,7 +142,6 @@ namespace TerraTopia
             _spawnGuard?.OnGameUpdate(e);
             _deathWatcher?.OnGameUpdate(e);
             _bossBlocker?.OnGameUpdate(e);
-            _luminite?.OnGameUpdate(e);
         }
 
         private void OnNpcSpawnProxy(NpcSpawnEventArgs e)
