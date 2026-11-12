@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Terraria;
 using TShockAPI;
 using TerraTopia.Home;
@@ -13,61 +11,15 @@ namespace TerraTopia.House
         private const int MaxHeight = 50;
 
         private readonly HomeService _home;
-        private readonly Dictionary<int, int> _marking = new Dictionary<int, int>();
         private readonly Dictionary<int, int[]> _pending = new Dictionary<int, int[]>();
-        private readonly List<KeyValuePair<EventInfo, Delegate>> _subs = new List<KeyValuePair<EventInfo, Delegate>>();
 
         public HouseCommands(HomeService home)
         {
             _home = home;
         }
 
-        public void RegisterTileHook()
-        {
-            try
-            {
-                foreach (var t in typeof(TShock).Assembly.GetTypes())
-                {
-                    if (t.Namespace == null || !t.Namespace.StartsWith("TShockAPI"))
-                    {
-                        continue;
-                    }
-
-                    foreach (var ev in t.GetEvents(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
-                    {
-                        if (!ev.Name.Contains("TileEdit"))
-                        {
-                            continue;
-                        }
-
-                        var adder = ev.GetAddMethod(true);
-                        if (adder == null || !adder.IsStatic)
-                        {
-                            continue;
-                        }
-
-                        Delegate handler = MakeHandler(ev.EventHandlerType);
-                        if (handler == null)
-                        {
-                            continue;
-                        }
-
-                        ev.AddEventHandler(null, handler);
-                        _subs.Add(new KeyValuePair<EventInfo, Delegate>(ev, handler));
-                        TShock.Log.ConsoleInfo($"[House] Terhubung ke {t.FullName}.{ev.Name}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                TShock.Log.Error("[TerraTopia] House gagal mencari event pukul block: " + ex.Message);
-            }
-
-            if (_subs.Count == 0)
-            {
-                TShock.Log.ConsoleInfo("[House] Event pukul block tidak ditemukan. /house set tidak akan berfungsi.");
-            }
-        }
+        // Dibiarkan kosong. Penandaan sekarang lewat posisi berdiri, bukan pukul block.
+        public void RegisterTileHook() { }
 
         public void House(CommandArgs args)
         {
@@ -88,7 +40,7 @@ namespace TerraTopia.House
             switch (args.Parameters[0].ToLower())
             {
                 case "set":
-                    StartMark(args);
+                    Set(args);
                     break;
                 case "define":
                     Define(p, account);
@@ -111,7 +63,7 @@ namespace TerraTopia.House
             p.SendInfoMessage($"Batas rumah: {MaxWidth} tile ke samping, {MaxHeight} tile ke atas. Hanya 1 rumah per pemain.");
         }
 
-        private void StartMark(CommandArgs args)
+        private void Set(CommandArgs args)
         {
             var p = args.Player;
 
@@ -121,71 +73,24 @@ namespace TerraTopia.House
                 return;
             }
 
-            int corner = args.Parameters[1] == "1" ? 1 : 2;
-            _marking[p.Index] = corner;
-
-            string sudut = corner == 1 ? "kiri atas" : "kanan bawah";
-            p.SendInfoMessage($"Pukul block di sudut {sudut} rumahmu dengan pickaxe. Block tidak akan hancur, hanya ditandai.");
-        }
-
-        private void OnTileEdit(object e)
-        {
-            try
+            if (!_pending.TryGetValue(p.Index, out int[] pts))
             {
-                if (e == null)
-                {
-                    return;
-                }
-
-                var player = GetValue(e, "Player") as TSPlayer;
-                if (player == null || !_marking.TryGetValue(player.Index, out int corner))
-                {
-                    return;
-                }
-
-                string action = GetValue(e, "Action")?.ToString() ?? "";
-                if (!action.Contains("Kill"))
-                {
-                    return;
-                }
-
-                object xo = GetValue(e, "X");
-                object yo = GetValue(e, "Y");
-                if (xo == null || yo == null)
-                {
-                    TShock.Log.ConsoleInfo("[House] Field X/Y tidak ditemukan di event TileEdit.");
-                    return;
-                }
-
-                int x = Convert.ToInt32(xo);
-                int y = Convert.ToInt32(yo);
-
-                if (!_pending.TryGetValue(player.Index, out int[] pts))
-                {
-                    pts = new[] { -1, -1, -1, -1 };
-                }
-
-                int offset = corner == 1 ? 0 : 2;
-                pts[offset] = x;
-                pts[offset + 1] = y;
-                _pending[player.Index] = pts;
-
-                SetHandled(e);
-                _marking.Remove(player.Index);
-
-                player.SendSuccessMessage($"Titik {corner} ditandai di ({x}, {y}).");
+                pts = new[] { -1, -1, -1, -1 };
             }
-            catch (Exception ex)
-            {
-                TShock.Log.Error("[TerraTopia] House gagal menandai block: " + ex.Message);
-            }
+
+            int offset = args.Parameters[1] == "1" ? 0 : 2;
+            pts[offset] = p.TileX;
+            pts[offset + 1] = p.TileY;
+            _pending[p.Index] = pts;
+
+            p.SendSuccessMessage($"Titik {args.Parameters[1]} diset di ({p.TileX}, {p.TileY}).");
         }
 
         private void Define(TSPlayer p, string account)
         {
             if (!_pending.TryGetValue(p.Index, out int[] pts) || pts[0] < 0 || pts[2] < 0)
             {
-                p.SendErrorMessage("Tandai dulu dua sudut: /house set 1 lalu pukul block, dan /house set 2 lalu pukul block.");
+                p.SendErrorMessage("Tandai dulu dua sudut: berdiri di sudut kiri atas lalu /house set 1, berdiri di sudut kanan bawah lalu /house set 2.");
                 return;
             }
 
@@ -196,10 +101,10 @@ namespace TerraTopia.House
                 return;
             }
 
-            int x1 = Math.Min(pts[0], pts[2]);
-            int y1 = Math.Min(pts[1], pts[3]);
-            int width = Math.Abs(pts[0] - pts[2]) + 1;
-            int height = Math.Abs(pts[1] - pts[3]) + 1;
+            int x1 = System.Math.Min(pts[0], pts[2]);
+            int y1 = System.Math.Min(pts[1], pts[3]);
+            int width = System.Math.Abs(pts[0] - pts[2]) + 1;
+            int height = System.Math.Abs(pts[1] - pts[3]) + 1;
 
             if (width > MaxWidth || height > MaxHeight)
             {
@@ -261,48 +166,6 @@ namespace TerraTopia.House
         private static string HouseName(string account)
         {
             return "house_" + account.ToLower();
-        }
-
-        private Delegate MakeHandler(Type delegateType)
-        {
-            var invoke = delegateType.GetMethod("Invoke");
-            if (invoke == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                int count = invoke.GetParameters().Length;
-                if (count == 2)
-                {
-                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnTileEdit2), BindingFlags.NonPublic | BindingFlags.Instance));
-                }
-                if (count == 1)
-                {
-                    return Delegate.CreateDelegate(delegateType, this, GetType().GetMethod(nameof(OnTileEdit1), BindingFlags.NonPublic | BindingFlags.Instance));
-                }
-            }
-            catch { }
-            return null;
-        }
-
-        private void OnTileEdit2(object sender, object e) => OnTileEdit(e);
-
-        private void OnTileEdit1(object e) => OnTileEdit(e);
-
-        private static object GetValue(object obj, string prop)
-        {
-            return obj.GetType()
-                .GetProperty(prop, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-                ?.GetValue(obj);
-        }
-
-        private static void SetHandled(object obj)
-        {
-            obj.GetType()
-                .GetProperty("Handled", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-                ?.SetValue(obj, true);
         }
     }
 }
