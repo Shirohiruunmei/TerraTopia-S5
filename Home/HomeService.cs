@@ -1,91 +1,75 @@
-using System;
-using System.Data;
+using TShockAPI;
 
 namespace TerraTopia.Home
 {
-    public class HomeService
+    public class HomeCommands
     {
-        private readonly IDbConnection _db;
-        private readonly object _lock = new object();
+        private readonly HomeService _home;
 
-        public HomeService(IDbConnection db)
+        public HomeCommands(HomeService home)
         {
-            _db = db;
+            _home = home;
         }
 
-        public void Init()
+        public void SetHome(CommandArgs args)
         {
-            lock (_lock)
+            var p = args.Player;
+            string account = p.Account?.Name;
+            if (account == null)
             {
-                if (_db.State != System.Data.ConnectionState.Open)
-                {
-                    _db.Open();
-                }
-
-                using (var c = Cmd("CREATE TABLE IF NOT EXISTS tt_homes (account TEXT PRIMARY KEY, region TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL)", null))
-                {
-                    c.ExecuteNonQuery();
-                }
+                p.SendErrorMessage("Kamu harus login dulu.");
+                return;
             }
-        }
 
-        public void Set(string account, string region, int x, int y)
-        {
-            lock (_lock)
-            {
-                using (var c = Cmd(
-                    "INSERT INTO tt_homes (account, region, x, y) VALUES (@a, @r, @x, @y) ON CONFLICT(account) DO UPDATE SET region = @r, x = @x, y = @y",
-                    null, ("@a", account), ("@r", region), ("@x", x), ("@y", y)))
-                {
-                    c.ExecuteNonQuery();
-                }
-            }
-        }
+            int x = p.TileX;
+            int y = p.TileY;
 
-        public void Delete(string account)
-        {
-            lock (_lock)
+            string ownedRegion = null;
+            var names = TShock.Regions.InAreaRegionName(x, y);
+            if (names != null)
             {
-                using (var c = Cmd("DELETE FROM tt_homes WHERE account = @a", null, ("@a", account)))
+                foreach (var name in names)
                 {
-                    c.ExecuteNonQuery();
-                }
-            }
-        }
-
-        public bool Get(string account, out int x, out int y)
-        {
-            x = 0;
-            y = 0;
-            lock (_lock)
-            {
-                using (var c = Cmd("SELECT x, y FROM tt_homes WHERE account = @a", null, ("@a", account)))
-                using (var r = c.ExecuteReader())
-                {
-                    if (!r.Read())
+                    var region = TShock.Regions.GetRegionByName(name);
+                    if (region != null && region.Owner == account)
                     {
-                        return false;
+                        ownedRegion = name;
+                        break;
                     }
-                    x = Convert.ToInt32(r[0]);
-                    y = Convert.ToInt32(r[1]);
-                    return true;
                 }
             }
+
+            if (ownedRegion == null)
+            {
+                p.SendErrorMessage("Berdiri di dalam region rumahmu sendiri dulu, lalu ketik /sethome.");
+                return;
+            }
+
+            _home.Set(account, ownedRegion, x, y);
+            p.TPlayer.SpawnX = x;
+            p.TPlayer.SpawnY = y;
+
+            p.SendSuccessMessage($"Rumah diset di region {ownedRegion}. Pakai /tph untuk kembali ke rumah.");
         }
 
-        private IDbCommand Cmd(string sql, IDbTransaction tx, params (string, object)[] parameters)
+        public void TpH(CommandArgs args)
         {
-            IDbCommand c = _db.CreateCommand();
-            c.CommandText = sql;
-            c.Transaction = tx;
-            foreach (var (name, value) in parameters)
+            var p = args.Player;
+            string account = p.Account?.Name;
+            if (account == null)
             {
-                IDbDataParameter p = c.CreateParameter();
-                p.ParameterName = name;
-                p.Value = value;
-                c.Parameters.Add(p);
+                p.SendErrorMessage("Kamu harus login dulu.");
+                return;
             }
-            return c;
+
+            if (!_home.Get(account, out int x, out int y))
+            {
+                p.SendErrorMessage("Kamu belum punya rumah. Berdiri di region rumahmu lalu ketik /sethome.");
+                return;
+            }
+
+            p.Teleport(x * 16f, y * 16f);
+            p.SendSuccessMessage("Kamu dipindahkan ke rumahmu.");
         }
     }
 }
