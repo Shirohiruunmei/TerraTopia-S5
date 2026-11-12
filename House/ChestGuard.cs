@@ -21,7 +21,6 @@ namespace TerraTopia.House
                         continue;
                     }
 
-                    // Cari sebagai event.
                     foreach (var ev in t.GetEvents(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
                     {
                         if (!ev.Name.Contains("ChestOpen") || !ev.GetAddMethod(true).IsStatic)
@@ -40,7 +39,6 @@ namespace TerraTopia.House
                         TShock.Log.ConsoleInfo($"[ChestGuard] Terhubung (event) ke {t.FullName}.{ev.Name}");
                     }
 
-                    // Cari sebagai field delegate statis.
                     foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
                     {
                         if (!f.Name.Contains("ChestOpen") || !typeof(Delegate).IsAssignableFrom(f.FieldType))
@@ -159,13 +157,13 @@ namespace TerraTopia.House
                 int x = Convert.ToInt32(xo);
                 int y = Convert.ToInt32(yo);
 
-                var names2 = TShock.Regions.InAreaRegionName(x, y);
-                if (names2 == null)
+                var regionNames = TShock.Regions.InAreaRegionName(x, y);
+                if (regionNames == null)
                 {
                     return;
                 }
 
-                foreach (var name in names2)
+                foreach (var name in regionNames)
                 {
                     if (!name.StartsWith("house_"))
                     {
@@ -209,4 +207,4 @@ namespace TerraTopia.House
                 ?.SetValue(obj, true);
         }
     }
-}p
+}
