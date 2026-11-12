@@ -49,7 +49,27 @@ namespace TerraTopia.Home
             p.TPlayer.SpawnX = x;
             p.TPlayer.SpawnY = y;
 
-            p.SendSuccessMessage($"Rumah diset di region {ownedRegion}. Saat mati, kamu akan respawn di sini.");
+            p.SendSuccessMessage($"Rumah diset di region {ownedRegion}. Pakai /tph untuk kembali ke rumah.");
+        }
+
+        public void TpH(CommandArgs args)
+        {
+            var p = args.Player;
+            string account = p.Account?.Name;
+            if (account == null)
+            {
+                p.SendErrorMessage("Kamu harus login dulu.");
+                return;
+            }
+
+            if (!_home.Get(account, out int x, out int y))
+            {
+                p.SendErrorMessage("Kamu belum punya rumah. Berdiri di region rumahmu lalu ketik /sethome.");
+                return;
+            }
+
+            p.Teleport(x * 16f, y * 16f);
+            p.SendSuccessMessage("Kamu dipindahkan ke rumahmu.");
         }
     }
 }
